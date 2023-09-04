@@ -1,2 +1,8 @@
 # pysynch
-Utilities to work with synch acquisition signals (TTLs, barcodes...) in python
+
+ 
+
+   Utilities to work with synch acquisition signals (TTLs, barcodes...) in python
+
+
+
