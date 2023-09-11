@@ -7,7 +7,8 @@ import numpy as np
 
 from pysynch.core.digital_signal import DigitalTsd
 
-class BarcodeSignal(DigitalTsd):
+
+class BarcodeTsd(DigitalTsd):
     """Class for extracting and analyzing barcodes from a digital signal.
     
     Attributes:
@@ -193,7 +194,7 @@ class BarcodeSignal(DigitalTsd):
         self._barcodes = np.array(signals_barcodes)
         self._barcodes_idx = np.array(signals_barcode_start_idxs)
 
-    def _map_to(self, other_barcode_signal: "BarcodeSignal") -> tuple[float, float]:
+    def _map_to(self, other_barcode_signal: "BarcodeTsd") -> tuple[float, float]:
         """Core method to map the barcode values of one BarcodeSignal to another BarcodeSignal.
         #TODO consider caching this operation if ends up used frequently - it is approx 0.01 ms for real data
         """
@@ -215,14 +216,14 @@ class BarcodeSignal(DigitalTsd):
         return coef, offset
 
     def _map_indexes_to(
-        self, other_barcode_signal: "BarcodeSignal", indexes: int | np.ndarray
+        self, other_barcode_signal: "BarcodeTsd", indexes: int | np.ndarray
     ) -> int | np.ndarray:
         """Core index conversion function, without type conversion."""
         coef, off = self._map_to(other_barcode_signal)
         return (indexes * coef) + off
 
     def map_indexes_to(
-        self, other_barcode_signal: "BarcodeSignal", indexes: int | np.ndarray
+        self, other_barcode_signal: "BarcodeTsd", indexes: int | np.ndarray
     ) -> int | np.ndarray:
         """Map the indexes in self timebase to another BarcodeSignal.
         This is a wrapper around _map_indexes_to that converts the output to int or np.ndarray (as the conversion)
@@ -248,7 +249,7 @@ class BarcodeSignal(DigitalTsd):
             return mapped_idxs.astype(int)
 
     def map_times_to(
-        self, other_barcode_signal: "BarcodeSignal", times: int | np.ndarray
+        self, other_barcode_signal: "BarcodeTsd", times: int | np.ndarray
     ) -> int | np.ndarray:
         """Map the times in self timebase to another BarcodeSignal. timebase
         Parameters
@@ -266,7 +267,7 @@ class BarcodeSignal(DigitalTsd):
         )
 
     def resample_to(
-        self, other_barcode_signal: "BarcodeSignal", own_timebase_data: np.ndarray
+        self, other_barcode_signal: "BarcodeTsd", own_timebase_data: np.ndarray
     ) -> np.ndarray:
         """Resample the data in self timebase to another BarcodeSignal.
 
@@ -321,7 +322,7 @@ if __name__ == "__main__":
     data_dict = {k: data[i] for i, k in enumerate(headers) if k is not None}
 
     t = time.time()
-    r = BarcodeSignal(data_dict["barcodes"], fs=4000)
+    r = BarcodeTsd(data_dict["barcodes"], fs=4000)
 
     print(time.time() - t)
     print(r.barcodes.shape)

@@ -4,7 +4,13 @@ from pynapple import Ts, Tsd, TsGroup
 
 
 class TimeBaseTs(Ts):
-    """TimeBase class for mapping between timebases."""
+    """TimeBase class for mapping signals between timebases.
+    The data that should populate this object is detected events from a clock
+    signal that gets acquired by multiple acquitision devices, eg device A and B.
+    
+    The synch events can then be used to move data acquired in one of the two systems 
+    to the timebase of the other.
+    """
 
     def _map_to(self, other_timebase: "TimeBaseTs") -> tuple[float, float]:
         # TODO maybe get intersection first
@@ -15,7 +21,7 @@ class TimeBaseTs(Ts):
     def map_times_to(
         self, other_timebase: "TimeBaseTs", times: np.ndarray
     ) -> int | np.ndarray:
-        """Core index conversion function, without type conversion."""
+        """Core index conversion function"""
         coef, off = self._map_to(other_timebase)
         return (times * coef) + off
 
@@ -35,5 +41,6 @@ if __name__ == "__main__":
 
     new_timesig_times = np.arange(2, 3, 0.1)
     signal_timebase_a = Tsd(new_timesig_times, np.random.rand(len(new_timesig_times)))
-    print(signal_timebase_a)
-    print(test_signal_a.map_ts_to(test_signal_b, signal_timebase_a).index.values)
+    
+    # map signal from one timebase to the other:
+    test_signal_a.map_ts_to(test_signal_b, signal_timebase_a).index.values
