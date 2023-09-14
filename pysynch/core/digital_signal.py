@@ -1,7 +1,7 @@
 from __future__ import annotations
 import numpy as np
-from pysynch.class_utils import lazy_property
 import pandas as pd
+import functools
 from pynapple import Tsd, Ts
 
 
@@ -52,30 +52,30 @@ class DigitalTsd(Tsd):
     def n_pts(self) -> int:
         return len(array)
 
-    @lazy_property
+    @functools.cached_property
     def onsets(self) -> np.ndarray:
         onsets_arr = np.insert(self.values[1:] & ~self.values[:-1], 0, False)
         return np.nonzero(onsets_arr)[0]
 
-    @lazy_property
+    @functools.cached_property
     def onsets_times(self) -> np.ndarray:
         return Ts(self.index[self.onsets].values)
 
-    @lazy_property
+    @functools.cached_property
     def offsets(self) -> np.ndarray:
         offsets_arr = np.insert(~self.values[1:] & self.values[:-1], 0, False)
         return np.nonzero(offsets_arr)[0]
 
-    @lazy_property
+    @functools.cached_property
     def offsets_times(self) -> np.ndarray:
         return Ts(self.index[self.offsets].values)
 
-    @lazy_property
+    @functools.cached_property
     def all_events(self) -> np.ndarray:
         all_events = np.concatenate([self.onsets, self.offsets])
         all_events.sort()
         return all_events
 
-    @lazy_property
+    @functools.cached_property
     def all_events_times(self) -> np.ndarray:
         return Ts(self.index[self.all_events].values)

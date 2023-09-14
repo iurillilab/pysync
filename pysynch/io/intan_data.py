@@ -1,13 +1,21 @@
 import os
+from re import T
 import struct
-from pysynch.class_utils import lazy_property
+from pysynch.class_utils import file_caching_property, FILE_CACHE_ATTRIBUTE_NAME
+import functools
 import numpy as np
 import pandas as pd
-
+from pynapple.core import TsdFrame
 from pysynch.core.barcode import BarcodeTsd
 
-class IntanData:
+class EmptyClass:
+    def __init__(self) -> None:
+        pass
+
+class IntanData(TsdFrame()):
     """Class to load and cache in .npy files data from an Intan recording session.
+
+    TODO: implement for analog data
 
     To access the data, use the following public properties:
 
@@ -15,79 +23,87 @@ class IntanData:
     dig_in_data: pd.DataFrame of data, with shape (num_channels, num_samples)
 
     """
+    _internal_names = pd.DataFrame._internal_names + ["a"]
+    _internal_names_set = set(_internal_names)
 
-    def __init__(self, folder_path, dig_channel_names=None) -> None:
-        self.folder_path = folder_path
-        self.file_list = sorted(list(folder_path.glob("*.rhd")))
-        self._preloaded_data = {file.stem: file for file in folder_path.glob("*.npy")}
-        self._dig_channel_names = dig_channel_names
-        self._raw_data = None
-        self._dig_in_array = None
-        self._time_array = None
-        self._barcodes = None
+    # normal properties
+    _metadata = ["b"]
 
-    @lazy_property
-    def raw_data(self) -> list:
-        if self._raw_data is None:
-            self._raw_data = [load_file(file) for file in self.file_list]
-        return self._raw_data
+    def __init__(self, *args, intan_data_path=None, dig_channel_names=None) -> None:
+        
+          #intan_folder_path = intan_data_path
+        # setattr(self, FILE_CACHE_ATTRIBUTE_NAME, intan_data_path)
+        # self.file_list = sorted(list(intan_data_path.glob("*.rhd")))
+        # self._preloaded_data = {file.stem: file for file in folder_path.glob("*.npy")}
+        # self._dig_channel_names = dig_channel_names
+        # self._raw_data = None
+        # self._dig_in_array = None
+        # self._time_array = None
+        # self._barcodes = None
 
-    @property
-    def time_array(self) -> np.array:
-        if self._time_array is None:
-            if "time_array" in self._preloaded_data.keys():
-                self._time_array = np.load(self._preloaded_data["time_array"])
-            else:
-                self._time_array = np.concatenate([d["t_dig"] for d in self.raw_data])
-                np.save(self.folder_path / "time_array.npy", self._time_array)
-
-        return self._time_array
-
-    @property
-    def dig_in_array(self) -> np.array:
-        if self._dig_in_array is None:
-            if "dig_in_array" in self._preloaded_data.keys():
-                self._dig_in_array = np.load(self._preloaded_data["dig_in_array"])
-            else:
-                self._dig_in_array = np.concatenate(
-                    [d["board_dig_in_data"] for d in self.raw_data], axis=1
-                ).T
-                np.save(self.folder_path / "dig_in_array.npy", self._dig_in_array)
-        return self._dig_in_array
-
-    @property
-    def data_df(self) -> pd.DataFrame:
-        data = np.concatenate([self.time_array[:, None], self.dig_in_array], axis=1)
-        if self._dig_channel_names is None:
-            self._dig_channel_names = ["time"] + [
-                f"channel_{i}" for i in range(self.dig_in_array.shape[1])
-            ]
-        col_names = ["time"] + self._dig_channel_names
-        return pd.DataFrame(data, columns=col_names)
-
-    @property
-    def fs(self) -> int:
-        if self._fs is None:
-            if "fs" in self._preloaded_data.keys():
-                self._fs = np.load(self._preloaded_data["fs"])
-            else:
-                self._fs = self.raw_data[0]["frequency_parameters"][
-                    "board_dig_in_sample_rate"
-                ]
-                np.save(self.folder_path / "fs.npy", self._fs)
-        return self._fs
-
-    @property
-    def barcodes(self) -> BarcodeTsd:
-        if self._barcodes is None:
-            if (
-                self._dig_channel_names is not None
-                and "barcodes" in self.data_df.columns
-            ):
-                self._barcodes = BarcodeTsd(self.data_df["barcodes"].values, self.fs)
-        return self._barcodes
+        setattr(self, "a", 1)
+        super().__init__(*args)
+    #     if self._dig_channel_names is None:
+    #         self._dig_channel_names = [
+    #             f"channel_{i}" for i in range(self.dig_in_array.shape[1])
+    #         ]
+    #     print([(file) for file in self.file_list])
+    #     # t=self._raw_rhd_data 
+    #     #data=self.dig_in_array, 
+    #     # columns=self._dig_channel_names
+        
+    #     #super().__init_
 
 
+    # # @functools.cached_property
+    def _raw_rhd_data(self) -> list:
+        """Load lazily files when needed.
+
+        Returns
+        -------
+        list
+            List of raw readings, for internal munging.
+        """
+        return [load_file(file) for file in self.file_list]
+
+    # @file_caching_property
+    # def time_array(self) -> np.array:
+    #     return np.concatenate([d["t_dig"] for d in self._raw_rhd_data])
+
+    # @file_caching_property
+    # def dig_in_array(self) -> np.array:
+    #     return np.concatenate(
+    #             [d["board_dig_in_data"] for d in self._raw_rhd_data], axis=1
+    #         ).T
+
+
+
+    # TODO remove in favor of Ts-related
+    # @property
+    # def fs(self) -> int:
+    #     if self._fs is None:
+    #         if "fs" in self._preloaded_data.keys():
+    #             self._fs = np.load(self._preloaded_data["fs"])
+    #         else:
+    #             self._fs = self.raw_data[0]["frequency_parameters"][
+    #                 "board_dig_in_sample_rate"
+    #             ]
+    #             np.save(self.folder_path / "fs.npy", self._fs)
+    #     return self._fs
+
+    # @property
+    # def barcodes(self) -> BarcodeTsd:
+    #     if self._barcodes is None:
+    #         if (
+    #             self._dig_channel_names is not None
+    #             and "barcodes" in self.data_df.columns
+    #         ):
+    #             self._barcodes = BarcodeTsd(self.data_df["barcodes"].values, self.fs)
+    #     return self._barcodes
+
+
+# Internet code ro read intan data files.
+# Code from https://github.com/Intan-Technologies/load-rhd-notebook-python/blob/main/importrhdutilities.py
 # Define get_bytes_per_data_block function
 def get_bytes_per_data_block(header):
     """Calculates the number of bytes in each 60 or 128 sample datablock."""
@@ -674,8 +690,9 @@ def load_file(filename):
 
 if __name__ == "__main__":
     from pathlib import Path
+    from pysynch.io.intan_data import IntanData
 
-    data_path = Path("/Users/vigji/Downloads/exampleephysdata")
-    intan_path = data_path / "IntanData"
-    t = IntanData(intan_path).time_array
-    print(np.histogram(np.diff(t)))
+    data_path = Path("/Users/vigji/Desktop/batch6_ephys_data/testintandata")
+
+    intan_data = IntanData(intan_data_path=data_path)
+

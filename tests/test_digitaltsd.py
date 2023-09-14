@@ -1,23 +1,6 @@
-from audioop import ratecv
-from mailbox import _SupportsReadAndReadline
-from operator import ne
-from pstats import StatsProfile
-from runpy import run_module
-from time import localtime
-from igraph import ClusterColoringPalette
-from jupyter_server import DEFAULT_STATIC_FILES_PATH
-from napari import view_tracks
-from networkx import fast_could_be_isomorphic, generate_multiline_adjlist
-import numpy as np
-from psutil import pid_exists
-from sklearn.dummy import check_random_state
-from sklearn.inspection import PartialDependenceDisplay
-from uri_template import ExpansionReservedError
 from pysynch import DigitalTsd
 import pytest
-
-from symbol import annassign
-
+import numpy as np
 
 @pytest.mark.parametrize("time_kwargs", [dict(), dict(time_array=np.arange(10), rate=2.0)])
 def test_notime_error(time_kwargs):
@@ -26,7 +9,7 @@ def test_notime_error(time_kwargs):
 
 
 @pytest.mark.parametrize(
-    "array_kwargs, time_kwargs", [[dict(), dict()], [dict(time_array=np.arange(0, 5, 0.5)), dict(rate=2.0)]]
+    "time_kwargs", [dict(time_array=np.arange(0, 5, 0.5)), dict(rate=2.0)]
 )
 class TestDigitalTsd:
     def test_properties(self, time_kwargs):
