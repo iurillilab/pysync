@@ -1,18 +1,25 @@
 import os
 from re import T
 import struct
+import time
 from pysynch.class_utils import file_caching_property, FILE_CACHE_ATTRIBUTE_NAME
 import functools
 import numpy as np
 import pandas as pd
 from pynapple.core import TsdFrame
+from pynapple.io.misc import load_file
 from pysynch.core.barcode import BarcodeTsd
+from pysynch.core.digital_signal import DigitalTsd
+import datetime
+from pathlib import Path
+
 
 class EmptyClass:
     def __init__(self) -> None:
         pass
 
-class IntanData(TsdFrame()):
+
+class DigitalIntanData(TsdFrame):
     """Class to load and cache in .npy files data from an Intan recording session.
 
     TODO: implement for analog data
@@ -23,15 +30,25 @@ class IntanData(TsdFrame()):
     dig_in_data: pd.DataFrame of data, with shape (num_channels, num_samples)
 
     """
-    _internal_names = pd.DataFrame._internal_names + ["a"]
+
+    _internal_names = pd.DataFrame._internal_names + ["barcodes_tsd", "timebase"]
     _internal_names_set = set(_internal_names)
 
     # normal properties
-    _metadata = ["b"]
+    # _metadata = ["b"]
+    CACHED_FILE_TEMPLATE_NAME = "preloaded-intan-data-{}.npz"
+    INTAN_FILENAME = ".rhd"
 
-    def __init__(self, *args, intan_data_path=None, dig_channel_names=None) -> None:
-        
-          #intan_folder_path = intan_data_path
+    @property
+    def _constructor(self):
+        return DigitalIntanData
+
+    @property
+    def _constructor_sliced(self):
+        return DigitalTsd
+
+    # def __init__(self) -> None:
+        # intan_folder_path = intan_data_path
         # setattr(self, FILE_CACHE_ATTRIBUTE_NAME, intan_data_path)
         # self.file_list = sorted(list(intan_data_path.glob("*.rhd")))
         # self._preloaded_data = {file.stem: file for file in folder_path.glob("*.npy")}
@@ -40,23 +57,71 @@ class IntanData(TsdFrame()):
         # self._dig_in_array = None
         # self._time_array = None
         # self._barcodes = None
+        # super().__init__(t=time_array, d=digital_input_array, **additional_kwargs)
 
-        setattr(self, "a", 1)
-        super().__init__(*args)
     #     if self._dig_channel_names is None:
     #         self._dig_channel_names = [
     #             f"channel_{i}" for i in range(self.dig_in_array.shape[1])
     #         ]
     #     print([(file) for file in self.file_list])
-    #     # t=self._raw_rhd_data 
-    #     #data=self.dig_in_array, 
+    #     # t=self._raw_rhd_data
+    #     #data=self.dig_in_array,
     #     # columns=self._dig_channel_names
-        
+
     #     #super().__init_
 
+    @classmethod
+    def from_folder(cls, intan_data_path, dig_channel_names=None, force_loading=False,
+             cache_loaded_file_to_disk=True):
+        
+        intan_data_path = Path(intan_data_path)
 
-    # # @functools.cached_property
-    def _raw_rhd_data(self) -> list:
+        assert intan_data_path.exists(), "The path to the intan data does not exist!"
+        assert (
+            len(list(intan_data_path.glob("*.npz"))) > 0
+            or len(list(intan_data_path.glob("*.rhd"))) > 0
+        ), "The path to the intan data does not contain .rhd or npz files!"
+
+        try:
+            preloaded_data_path = next(
+                intan_data_path.glob(DigitalIntanData.CACHED_FILE_TEMPLATE_NAME.format("*"))
+            )
+        except StopIteration:
+            preloaded_data_path = None
+
+        # All this should go away when there will be a Tsd class loading option:
+        if preloaded_data_path is not None and not force_loading:
+            loaded_file = np.load(preloaded_data_path, allow_pickle=True)
+            time_array, digital_input_array, dig_channel_names = (
+                loaded_file["time_array"],
+                loaded_file["digital_input_array"],
+                loaded_file["dig_channel_names"],
+            )
+
+        else:
+            time_array, digital_input_array = DigitalIntanData._raw_rhd_data(intan_data_path)
+
+            if cache_loaded_file_to_disk:
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                np.savez(
+                    str(intan_data_path / DigitalIntanData.CACHED_FILE_TEMPLATE_NAME.format(timestamp)),
+                    time_array=time_array,
+                    digital_input_array=digital_input_array,
+                    dig_channel_names=dig_channel_names
+                    if dig_channel_names is not None
+                    else [],
+                )
+
+        # pass columns names only if specified:
+        if dig_channel_names is not None and len(dig_channel_names) > 0:
+            additional_kwargs = dict(columns=dig_channel_names)
+        else:
+            additional_kwargs = dict()
+
+        return cls(t=time_array, d=digital_input_array, **additional_kwargs)
+
+    @staticmethod
+    def _raw_rhd_data(data_path) -> list:
         """Load lazily files when needed.
 
         Returns
@@ -64,47 +129,34 @@ class IntanData(TsdFrame()):
         list
             List of raw readings, for internal munging.
         """
-        return [load_file(file) for file in self.file_list]
 
-    # @file_caching_property
-    # def time_array(self) -> np.array:
-    #     return np.concatenate([d["t_dig"] for d in self._raw_rhd_data])
+        raw_files = [
+            load_rhd_file(file)
+            for file in sorted(data_path.glob("*" + DigitalIntanData.INTAN_FILENAME))
+        ]
+        # fs = raw_files[0]["frequency_parameters"]["board_dig_in_sample_rate"]
+        time_array = np.concatenate([d["t_dig"] for d in raw_files])
+        digital_input_array = np.concatenate(
+            [d["board_dig_in_data"] for d in raw_files], axis=1
+        ).T
+        return time_array, digital_input_array
 
-    # @file_caching_property
-    # def dig_in_array(self) -> np.array:
-    #     return np.concatenate(
-    #             [d["board_dig_in_data"] for d in self._raw_rhd_data], axis=1
-    #         ).T
-
-
-
-    # TODO remove in favor of Ts-related
-    # @property
-    # def fs(self) -> int:
-    #     if self._fs is None:
-    #         if "fs" in self._preloaded_data.keys():
-    #             self._fs = np.load(self._preloaded_data["fs"])
-    #         else:
-    #             self._fs = self.raw_data[0]["frequency_parameters"][
-    #                 "board_dig_in_sample_rate"
-    #             ]
-    #             np.save(self.folder_path / "fs.npy", self._fs)
-    #     return self._fs
-
-    # @property
-    # def barcodes(self) -> BarcodeTsd:
-    #     if self._barcodes is None:
-    #         if (
-    #             self._dig_channel_names is not None
-    #             and "barcodes" in self.data_df.columns
-    #         ):
-    #             self._barcodes = BarcodeTsd(self.data_df["barcodes"].values, self.fs)
-    #     return self._barcodes
+    @functools.cached_property
+    def barcodes_tsd(self) -> BarcodeTsd:
+        assert "barcodes" in self.columns, "No 'barcodes' in the data headers!"
+        # TODO look into this: this sintax initializes a DigitalTsd, passes it 
+        # to the BarcodeTsd object that than initializes a second DigitalTsd 
+        return BarcodeTsd(self["barcodes"])
+    
+    # @functools.cached_property
+    #def timebase(self) -> DigitalTsd:
+    #    return DigitalTsd(self["timebase"])
 
 
 # Internet code ro read intan data files.
 # Code from https://github.com/Intan-Technologies/load-rhd-notebook-python/blob/main/importrhdutilities.py
 # Define get_bytes_per_data_block function
+
 def get_bytes_per_data_block(header):
     """Calculates the number of bytes in each 60 or 128 sample datablock."""
 
@@ -517,7 +569,7 @@ def data_to_result(header, data, data_present):
 
 
 # Define load_file function
-def load_file(filename):
+def load_rhd_file(filename):
     # Open file
     fid = open(filename, "rb")
     filesize = os.path.getsize(filename)
@@ -688,11 +740,6 @@ def load_file(filename):
 
     return result
 
+
 if __name__ == "__main__":
-    from pathlib import Path
-    from pysynch.io.intan_data import IntanData
-
-    data_path = Path("/Users/vigji/Desktop/batch6_ephys_data/testintandata")
-
-    intan_data = IntanData(intan_data_path=data_path)
-
+    intan_data = DigitalIntanData("/Users/vigji/code/pysynch/tests/assets/intan_data")

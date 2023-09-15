@@ -6,11 +6,12 @@
 import numpy as np
 
 from pysynch.core.digital_signal import DigitalTsd
+from pysynch.core.timebase import TimeBaseTs
 
 
 class BarcodeTsd(DigitalTsd):
     """Class for extracting and analyzing barcodes from a digital signal.
-    
+
     Attributes:
     -----------
     barcodes : np.ndarray
@@ -42,7 +43,7 @@ class BarcodeTsd(DigitalTsd):
     def __init__(self, *args, **kwargs) -> None:
         """Initialize the BarcodeSignal class."""
         super().__init__(*args, **kwargs)
-        assert self.rate is not None, "Sampling rate must be specified."
+        # assert self.rate is not None, "Sampling rate must be specified."
         self._barcodes, self._barcodes_idx = None, None
 
     @property
@@ -62,7 +63,13 @@ class BarcodeTsd(DigitalTsd):
     @property
     def barcodes_times(self) -> np.ndarray:
         """Array of barcodes' times."""
-        return self.barcodes_idx / self.fs
+        return self.barcodes_idx / self.rate
+    
+    @property
+    def timebase(self) -> np.ndarray:
+        """Generate timebase object from detected barcodes.
+        """
+        return TimeBaseTs(self.barcodes, self.barcodes_times) 
 
     def _read_barcodes(self) -> None:
         """Analyzes the digital signal to extract the barcodes. Lengthy function inherited from the barcode
@@ -78,7 +85,7 @@ class BarcodeTsd(DigitalTsd):
         max_wrap_duration = (
             self.WRAP_DURATION_MS + self.WRAP_DURATION_MS * self.GLOBAL_TOLERANCE
         )
-        sample_conversion = 1000 / self.fs  # Convert sampling rate to msec
+        sample_conversion = 1000 / self.rate  # Convert sampling rate to msec
 
         # Signal extraction and barcode analysis
         indexed_times = self.all_events

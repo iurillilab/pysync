@@ -1,3 +1,8 @@
-from pysynch.core import TimeBaseTs
+__version__ = "0.0.1"
+__author__ = "Luigi Petrucco"
+
 from pysynch.core import DigitalTsd
-from pysynch.core import BarcodeTsd
+from pysynch.io import DigitalIntanData
+
+__all__ = ["DigitalTsd", "DigitalIntanData"]
+

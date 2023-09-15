@@ -1,14 +1,14 @@
 # %%
-#%load_ext autoreload
+# %load_ext autoreload
 # %autoreload
 from pynapple import Ts, Tsd, TsGroup
 import numpy as np
 from pathlib import Path
-from pysynch.io.intan_data import IntanData
+from pysynch.io.intan_data import DigitalIntanData
 
 
 # %%
 # ?IntanData.raw_data
 # %%
-print(IntanData.raw_data.__doc__)
+print(DigitalIntanData.raw_data.__doc__)
 # %%

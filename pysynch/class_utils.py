@@ -11,7 +11,7 @@ def attribute_caching_property(func: callable):
 
     Parameters
     ----------
-    func : method 
+    func : method
         A method to decorate
 
     Returns
@@ -19,7 +19,7 @@ def attribute_caching_property(func: callable):
     callable
         The decorated method
     """
-    
+
     attribute_name = "_" + func.__name__
 
     @property
@@ -35,26 +35,29 @@ def attribute_caching_property(func: callable):
 FILE_CACHE_ATTRIBUTE_NAME = "_file_cache_path"
 CACHE_SUFFIX = "_cached.npy"
 
+
 def file_caching_property(func: callable):
     """_summary_
 
     Parameters
     ----------
     func : callable
-       The function to decorate 
+       The function to decorate
 
     Returns
     -------
     callable
-       The decorated function 
+       The decorated function
     """
 
-    filename = func.__name__ + CACHE_SUFFIX 
-    
+    filename = func.__name__ + CACHE_SUFFIX
+
     @property
     @wraps(func)
     def wrapper(self):
-        assert hasattr(self, FILE_CACHE_ATTRIBUTE_NAME), "The object must have a file_cache_path attribute!" 
+        assert hasattr(
+            self, FILE_CACHE_ATTRIBUTE_NAME
+        ), "The object must have a file_cache_path attribute!"
         data_path = Path(getattr(self, FILE_CACHE_ATTRIBUTE_NAME))
         data_path.mkdir(exist_ok=True, parents=True)
 
@@ -64,6 +67,5 @@ def file_caching_property(func: callable):
             result = func(self)
             np.save(data_path / filename, result)
             return result
-        
+
     return wrapper
-    

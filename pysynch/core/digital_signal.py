@@ -3,10 +3,11 @@ import numpy as np
 import pandas as pd
 import functools
 from pynapple import Tsd, Ts
+from pandas.core.internals import BlockManager, SingleBlockManager
 
 
 class DigitalTsd(Tsd):
-    """Class to handle digital signals. Features onsets and ofrateets
+    """Class to handle digital signals. Features onsets and offsets
     detection, and conversion to timebase."""
 
     def __init__(
@@ -30,30 +31,42 @@ class DigitalTsd(Tsd):
         signal_range : _type_, optional
             _description_, by default None
         """
+        if isinstance(array, SingleBlockManager):
+            time_array = array.index.values
+            array = array.array
+
+        elif isinstance(array, pd.Series):
+            time_array = array.index.values
+            array = array.values
+
         array = np.array(array)
+
+        # convert to bool if not already:
         if array.dtype != bool:
             if array.max() == 1:
                 array = array.astype(bool)
             else:
-                print(array.max())
                 assert (
                     signal_range is not None
                 ), "signal_range must be provided if array is not 0/1"
                 array = array > signal_range / 2
-        assert (
-            (time_array is not None) ^ (rate is not None)
+
+        assert (time_array is not None) ^ (
+            rate is not None
         ), "Either time_array or rate must be provided"
 
         if time_array is None:
             time_array = np.arange(len(array)) / rate
-        super().__init__(time_array, array)
+        super().__init__(array, time_array)
 
     @property
     def n_pts(self) -> int:
-        return len(array)
+        # TODO deprecate
+        return len(self)
 
     @functools.cached_property
     def onsets(self) -> np.ndarray:
+        print(self.values)
         onsets_arr = np.insert(self.values[1:] & ~self.values[:-1], 0, False)
         return np.nonzero(onsets_arr)[0]
 
