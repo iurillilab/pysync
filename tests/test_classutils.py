@@ -1,9 +1,8 @@
 from pathlib import Path
+
 from pysynch.class_utils import (
-    attribute_caching_property,
-    file_caching_property,
     FILE_CACHE_ATTRIBUTE_NAME,
-    CACHE_SUFFIX,
+    file_caching_property,
 )
 
 

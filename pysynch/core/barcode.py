@@ -64,12 +64,11 @@ class BarcodeTsd(DigitalTsd):
     def barcodes_times(self) -> np.ndarray:
         """Array of barcodes' times."""
         return self.barcodes_idx / self.rate
-    
+
     @property
     def timebase(self) -> np.ndarray:
-        """Generate timebase object from detected barcodes.
-        """
-        return TimeBaseTs(self.barcodes, self.barcodes_times) 
+        """Generate timebase object from detected barcodes."""
+        return TimeBaseTs(self.barcodes, self.barcodes_times)
 
     def _read_barcodes(self) -> None:
         """Analyzes the digital signal to extract the barcodes. Lengthy function inherited from the barcode
@@ -185,7 +184,7 @@ class BarcodeTsd(DigitalTsd):
                     interbit_on = True
                 elif min_bar_duration <= next_off <= max_bar_duration:
                     interbit_on = False
-                elif interbit_on == True:
+                elif interbit_on:
                     bits[bit] = 1
 
                 curr_time += self.BAR_DURATION_MS
@@ -200,146 +199,3 @@ class BarcodeTsd(DigitalTsd):
         # Create merged array with timestamps stacked above their barcode values
         self._barcodes = np.array(signals_barcodes)
         self._barcodes_idx = np.array(signals_barcode_start_idxs)
-
-    def _map_to(self, other_barcode_signal: "BarcodeTsd") -> tuple[float, float]:
-        """Core method to map the barcode values of one BarcodeSignal to another BarcodeSignal.
-        #TODO consider caching this operation if ends up used frequently - it is approx 0.01 ms for real data
-        """
-        # Pull the index values from barcodes shared by both groups of data:
-        shared_barcodes, own_index, other_index = np.intersect1d(
-            self.barcodes, other_barcode_signal.barcodes, return_indices=True
-        )
-
-        own_shared_barcode_times = self.barcodes_idx[own_index]
-        other_shared_barcode_times = other_barcode_signal.barcodes_idx[other_index]
-
-        # Determine slope between main/secondary timestamps
-        coef = (other_shared_barcode_times[-1] - other_shared_barcode_times[0]) / (
-            own_shared_barcode_times[-1] - own_shared_barcode_times[0]
-        )
-        # Determine offset between main and secondary barcode timestamps
-        offset = other_shared_barcode_times[0] - own_shared_barcode_times[0] * coef
-
-        return coef, offset
-
-    def _map_indexes_to(
-        self, other_barcode_signal: "BarcodeTsd", indexes: int | np.ndarray
-    ) -> int | np.ndarray:
-        """Core index conversion function, without type conversion."""
-        coef, off = self._map_to(other_barcode_signal)
-        return (indexes * coef) + off
-
-    def map_indexes_to(
-        self, other_barcode_signal: "BarcodeTsd", indexes: int | np.ndarray
-    ) -> int | np.ndarray:
-        """Map the indexes in self timebase to another BarcodeSignal.
-        This is a wrapper around _map_indexes_to that converts the output to int or np.ndarray (as the conversion)
-        is not necessary for the resampling function).
-
-        Parameters
-        ----------
-        other_barcode_signal : BarcodeSignal object
-            The BarcodeSignal object describing the timebase to which the indexes will be mapped.
-        indexes : np.ndarray
-            The indexes (in the self timebase) to be mapped to the new timebase
-
-        Returns
-        -------
-        np.ndarray :
-            The mapped indexes.
-
-        """
-        mapped_idxs = self._map_indexes_to(other_barcode_signal, indexes)
-        try:
-            return int(mapped_idxs)
-        except TypeError:
-            return mapped_idxs.astype(int)
-
-    def map_times_to(
-        self, other_barcode_signal: "BarcodeTsd", times: int | np.ndarray
-    ) -> int | np.ndarray:
-        """Map the times in self timebase to another BarcodeSignal. timebase
-        Parameters
-        ----------
-        other_barcode_signal
-        times
-
-        Returns
-        -------
-
-        """
-        return (
-            self._map_indexes_to(other_barcode_signal, times * self.fs)
-            / other_barcode_signal.fs
-        )
-
-    def resample_to(
-        self, other_barcode_signal: "BarcodeTsd", own_timebase_data: np.ndarray
-    ) -> np.ndarray:
-        """Resample the data in self timebase to another BarcodeSignal.
-
-        Parameters
-        ----------
-        other_barcode_signal : BarcodeSignal object
-            The BarcodeSignal object describing the timebase to which the data will be resampled.
-        own_timebase_data : np.ndarray
-            The data (in the self timebase) to be resampled to the new timebase
-
-        Returns
-        -------
-        np.ndarray :
-            The resampled data.
-
-        """
-
-        # TODO check if this could be somehow made faster
-        own_idxs = np.arange(self.n_pts)
-        other_idxs = np.arange(other_barcode_signal.n_pts)
-
-        mapped_idxs = self._map_indexes_to(other_barcode_signal, own_idxs)
-        return np.interp(other_idxs, mapped_idxs, own_timebase_data)
-
-
-if __name__ == "__main__":
-    import time
-    from pathlib import Path
-
-    import numpy as np
-
-    from labnpx.intan_reader import IntanData
-
-    data_path = Path("/Users/vigji/Downloads/exampleephysdata")
-    intan_path = data_path / "IntanData"
-    intan_data = IntanData(intan_path)
-    data = intan_data.dig_in_array
-    headers = [
-        None,
-        "barcodes",
-        None,
-        "laser",
-        "photodiode",
-        None,
-        None,
-        None,
-        "cameras",
-        "servo_forw",
-        "servo_back",
-        None,
-    ]
-    data_dict = {k: data[i] for i, k in enumerate(headers) if k is not None}
-
-    t = time.time()
-    r = BarcodeTsd(data_dict["barcodes"], fs=4000)
-
-    print(time.time() - t)
-    print(r.barcodes.shape)
-    print(r.barcodes[:, :2])
-    print(r.barcodes[:, -2:])
-    assert r.barcodes.shape == (2, 1776)
-    assert np.allclose(
-        r.barcodes[:, :2], np.array([[1583.0, 21586.0], [29000.0, 29001.0]]).T
-    )
-    assert np.allclose(
-        r.barcodes[:, -2:],
-        np.array([[3.5487055e07, 3.5507058e07], [3.0774000e04, 3.0775000e04]]).T,
-    )

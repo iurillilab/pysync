@@ -1,6 +1,5 @@
 import numpy as np
 
-
 # This matrix has been manually calibrated from some raw data (known number of rotations by hand)
 
 # Pitch, roll, yaw

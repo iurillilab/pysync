@@ -1,6 +1,7 @@
-from pysynch import DigitalTsd
-import pytest
 import numpy as np
+import pytest
+
+from pysynch import DigitalTsd
 
 
 @pytest.mark.parametrize(

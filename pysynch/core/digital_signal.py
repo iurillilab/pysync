@@ -1,9 +1,11 @@
 from __future__ import annotations
+
+import functools
+
 import numpy as np
 import pandas as pd
-import functools
-from pynapple import Tsd, Ts
-from pandas.core.internals import BlockManager, SingleBlockManager
+from pandas.core.internals import SingleBlockManager
+from pynapple import Ts, Tsd
 
 
 class DigitalTsd(Tsd):

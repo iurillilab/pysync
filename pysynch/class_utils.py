@@ -1,7 +1,7 @@
-from pathlib import Path
-from flask.scaffold import F
-import numpy as np
 from functools import wraps
+from pathlib import Path
+
+import numpy as np
 from typing_extensions import deprecated
 
 

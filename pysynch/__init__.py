@@ -5,4 +5,3 @@ from pysynch.core import DigitalTsd
 from pysynch.io import DigitalIntanData
 
 __all__ = ["DigitalTsd", "DigitalIntanData"]
-

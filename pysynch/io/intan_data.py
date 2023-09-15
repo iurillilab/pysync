@@ -1,17 +1,15 @@
-import os
-from re import T
-import struct
-import time
-from pysynch.class_utils import file_caching_property, FILE_CACHE_ATTRIBUTE_NAME
+import datetime
 import functools
+import os
+import struct
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 from pynapple.core import TsdFrame
-from pynapple.io.misc import load_file
+
 from pysynch.core.barcode import BarcodeTsd
 from pysynch.core.digital_signal import DigitalTsd
-import datetime
-from pathlib import Path
 
 
 class EmptyClass:
@@ -48,16 +46,16 @@ class DigitalIntanData(TsdFrame):
         return DigitalTsd
 
     # def __init__(self) -> None:
-        # intan_folder_path = intan_data_path
-        # setattr(self, FILE_CACHE_ATTRIBUTE_NAME, intan_data_path)
-        # self.file_list = sorted(list(intan_data_path.glob("*.rhd")))
-        # self._preloaded_data = {file.stem: file for file in folder_path.glob("*.npy")}
-        # self._dig_channel_names = dig_channel_names
-        # self._raw_data = None
-        # self._dig_in_array = None
-        # self._time_array = None
-        # self._barcodes = None
-        # super().__init__(t=time_array, d=digital_input_array, **additional_kwargs)
+    # intan_folder_path = intan_data_path
+    # setattr(self, FILE_CACHE_ATTRIBUTE_NAME, intan_data_path)
+    # self.file_list = sorted(list(intan_data_path.glob("*.rhd")))
+    # self._preloaded_data = {file.stem: file for file in folder_path.glob("*.npy")}
+    # self._dig_channel_names = dig_channel_names
+    # self._raw_data = None
+    # self._dig_in_array = None
+    # self._time_array = None
+    # self._barcodes = None
+    # super().__init__(t=time_array, d=digital_input_array, **additional_kwargs)
 
     #     if self._dig_channel_names is None:
     #         self._dig_channel_names = [
@@ -71,9 +69,13 @@ class DigitalIntanData(TsdFrame):
     #     #super().__init_
 
     @classmethod
-    def from_folder(cls, intan_data_path, dig_channel_names=None, force_loading=False,
-             cache_loaded_file_to_disk=True):
-        
+    def from_folder(
+        cls,
+        intan_data_path,
+        dig_channel_names=None,
+        force_loading=False,
+        cache_loaded_file_to_disk=True,
+    ):
         intan_data_path = Path(intan_data_path)
 
         assert intan_data_path.exists(), "The path to the intan data does not exist!"
@@ -84,7 +86,9 @@ class DigitalIntanData(TsdFrame):
 
         try:
             preloaded_data_path = next(
-                intan_data_path.glob(DigitalIntanData.CACHED_FILE_TEMPLATE_NAME.format("*"))
+                intan_data_path.glob(
+                    DigitalIntanData.CACHED_FILE_TEMPLATE_NAME.format("*")
+                )
             )
         except StopIteration:
             preloaded_data_path = None
@@ -99,12 +103,17 @@ class DigitalIntanData(TsdFrame):
             )
 
         else:
-            time_array, digital_input_array = DigitalIntanData._raw_rhd_data(intan_data_path)
+            time_array, digital_input_array = DigitalIntanData._raw_rhd_data(
+                intan_data_path
+            )
 
             if cache_loaded_file_to_disk:
                 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
                 np.savez(
-                    str(intan_data_path / DigitalIntanData.CACHED_FILE_TEMPLATE_NAME.format(timestamp)),
+                    str(
+                        intan_data_path
+                        / DigitalIntanData.CACHED_FILE_TEMPLATE_NAME.format(timestamp)
+                    ),
                     time_array=time_array,
                     digital_input_array=digital_input_array,
                     dig_channel_names=dig_channel_names
@@ -144,18 +153,19 @@ class DigitalIntanData(TsdFrame):
     @functools.cached_property
     def barcodes_tsd(self) -> BarcodeTsd:
         assert "barcodes" in self.columns, "No 'barcodes' in the data headers!"
-        # TODO look into this: this sintax initializes a DigitalTsd, passes it 
-        # to the BarcodeTsd object that than initializes a second DigitalTsd 
+        # TODO look into this: this sintax initializes a DigitalTsd, passes it
+        # to the BarcodeTsd object that than initializes a second DigitalTsd
         return BarcodeTsd(self["barcodes"])
-    
+
     # @functools.cached_property
-    #def timebase(self) -> DigitalTsd:
+    # def timebase(self) -> DigitalTsd:
     #    return DigitalTsd(self["timebase"])
 
 
 # Internet code ro read intan data files.
 # Code from https://github.com/Intan-Technologies/load-rhd-notebook-python/blob/main/importrhdutilities.py
 # Define get_bytes_per_data_block function
+
 
 def get_bytes_per_data_block(header):
     """Calculates the number of bytes in each 60 or 128 sample datablock."""
@@ -211,7 +221,6 @@ def read_qstring(fid):
         return ""
 
     if length > (os.fstat(fid.fileno()).st_size - fid.tell() + 1):
-        print(length)
         raise Exception("Length too long.")
 
     # convert length from bytes to 16-bit Unicode words
@@ -721,7 +730,8 @@ def load_rhd_file(filename):
         num_gaps = np.sum(
             np.not_equal(data["t_amplifier"][1:] - data["t_amplifier"][:-1], 1)
         )
-
+        print(f"{num_gaps} gaps in timestamp data found while loading.")
+        # assert num_gaps == 0, f"Error: {num_gaps} gaps in timestamp data found.  Data file is corrupt!"
         # Scale time steps (units = seconds)
         data["t_amplifier"] = data["t_amplifier"] / header["sample_rate"]
         data["t_aux_input"] = data["t_amplifier"][range(0, len(data["t_amplifier"]), 4)]
