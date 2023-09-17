@@ -69,10 +69,11 @@ class DigitalIntanData(TsdFrame):
 
         # All this should go away when there will be a Tsd class loading option:
         if preloaded_data_path is not None and not force_loading:
-            time_array, digital_input_array, dig_channel_names = DigitalIntanData._load_npz_file(
-                preloaded_data_path
-            )
-            
+            (
+                time_array,
+                digital_input_array,
+                dig_channel_names,
+            ) = DigitalIntanData._load_npz_file(preloaded_data_path)
 
         else:
             time_array, digital_input_array = DigitalIntanData._raw_rhd_data(
@@ -99,8 +100,10 @@ class DigitalIntanData(TsdFrame):
         else:
             additional_kwargs = dict()
 
-        return DigitalIntanData._obj_from_args(t=time_array, d=digital_input_array, **additional_kwargs)
-    
+        return DigitalIntanData._obj_from_args(
+            t=time_array, d=digital_input_array, **additional_kwargs
+        )
+
     @staticmethod
     def _load_npz_file(preloaded_data_path):
         loaded_file = np.load(preloaded_data_path, allow_pickle=True)
@@ -110,19 +113,23 @@ class DigitalIntanData(TsdFrame):
             loaded_file["dig_channel_names"],
         )
         return time_array, digital_input_array, dig_channel_names
-    
+
     @staticmethod
     def from_npz_file(preloaded_data_path):
-        time_array, digital_input_array, dig_channel_names = DigitalIntanData._load_npz_file(preloaded_data_path)
+        (
+            time_array,
+            digital_input_array,
+            dig_channel_names,
+        ) = DigitalIntanData._load_npz_file(preloaded_data_path)
         if len(dig_channel_names) == 0:
             dig_channel_names = None
-        return DigitalIntanData._obj_from_args(time_array, digital_input_array, 
-                                               columns=dig_channel_names)
+        return DigitalIntanData._obj_from_args(
+            time_array, digital_input_array, columns=dig_channel_names
+        )
 
     @classmethod
     def _obj_from_args(cls, *args, **kwargs):
         return cls(*args, **kwargs)
-
 
     @staticmethod
     def _raw_rhd_data(data_path) -> list:

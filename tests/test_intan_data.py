@@ -5,12 +5,13 @@ from pysynch.io.intan_data import DigitalIntanData
 
 # from conftest import intan_data_path
 
-COLNAMES = ["barcodes", "camera"]
-
 
 @pytest.fixture(scope="function")
 def intan_data(intan_data_path):
     return DigitalIntanData.from_folder(intan_data_path, dig_channel_names=COLNAMES)
+
+
+COLNAMES = ["barcodes", "camera"]
 
 
 def test_intan_data_caching(intan_data_path):
