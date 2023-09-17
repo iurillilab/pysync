@@ -69,10 +69,3 @@ class TreadmillData(TsdFrame):
         df = df.set_index("time")
 
         return df
-
-
-if __name__ == "__main__":
-    df = TreadmillData.from_path(
-        "/Users/vigji/Desktop/batch6_ephys_data/M9/ThreadmillData"
-    )
-    print(df)

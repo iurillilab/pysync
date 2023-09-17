@@ -120,4 +120,5 @@ class IndexedTimeBase(Tsd, TimeBaseMixin):
         coef, offset = np.polyfit(
             self.index[own_index], other_timebase.index[other_index], 1
         )
+
         return coef, offset
