@@ -14,4 +14,19 @@ BALL_CALIBRATION = np.array(
 
 
 class TreadmillData:
-    pass
+    def __init__(self):
+            
+        epochs_df = self.stim_epochs_df
+
+        s = ~np.isnan(epochs_df.barcode_cpu_time)
+        cpu_base = TimeBase(epochs_df.barcode_cpu_time[s])
+        intan_base = TimeBase(epochs_df.barcode_intan_time[s])
+
+        df = pd.read_csv(next(self.treadmill_data_folder.glob("*.csv")))
+        df["t_intan"] = cpu_base.map_times_to(intan_base, df["t_ns"])
+        df.loc[:, ["pitch", "roll", "yaw"]] = (
+            BALL_CALIBRATION @ df[["x0", "y0", "x1", "y1"]].values.T
+        ).T
+        return df
+
+    def from_csv(file_path)

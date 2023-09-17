@@ -32,8 +32,6 @@ class DigitalIntanData(TsdFrame):
     _internal_names = pd.DataFrame._internal_names + ["barcodes_tsd", "timebase"]
     _internal_names_set = set(_internal_names)
 
-    # normal properties
-    # _metadata = ["b"]
     CACHED_FILE_TEMPLATE_NAME = "preloaded-intan-data-{}.npz"
     INTAN_FILENAME = ".rhd"
 
@@ -45,32 +43,8 @@ class DigitalIntanData(TsdFrame):
     def _constructor_sliced(self):
         return DigitalTsd
 
-    # def __init__(self) -> None:
-    # intan_folder_path = intan_data_path
-    # setattr(self, FILE_CACHE_ATTRIBUTE_NAME, intan_data_path)
-    # self.file_list = sorted(list(intan_data_path.glob("*.rhd")))
-    # self._preloaded_data = {file.stem: file for file in folder_path.glob("*.npy")}
-    # self._dig_channel_names = dig_channel_names
-    # self._raw_data = None
-    # self._dig_in_array = None
-    # self._time_array = None
-    # self._barcodes = None
-    # super().__init__(t=time_array, d=digital_input_array, **additional_kwargs)
-
-    #     if self._dig_channel_names is None:
-    #         self._dig_channel_names = [
-    #             f"channel_{i}" for i in range(self.dig_in_array.shape[1])
-    #         ]
-    #     print([(file) for file in self.file_list])
-    #     # t=self._raw_rhd_data
-    #     #data=self.dig_in_array,
-    #     # columns=self._dig_channel_names
-
-    #     #super().__init_
-
-    @classmethod
+    @staticmethod
     def from_folder(
-        cls,
         intan_data_path,
         dig_channel_names=None,
         force_loading=False,
@@ -95,12 +69,10 @@ class DigitalIntanData(TsdFrame):
 
         # All this should go away when there will be a Tsd class loading option:
         if preloaded_data_path is not None and not force_loading:
-            loaded_file = np.load(preloaded_data_path, allow_pickle=True)
-            time_array, digital_input_array, dig_channel_names = (
-                loaded_file["time_array"],
-                loaded_file["digital_input_array"],
-                loaded_file["dig_channel_names"],
+            time_array, digital_input_array, dig_channel_names = DigitalIntanData._load_npz_file(
+                preloaded_data_path
             )
+            
 
         else:
             time_array, digital_input_array = DigitalIntanData._raw_rhd_data(
@@ -127,7 +99,30 @@ class DigitalIntanData(TsdFrame):
         else:
             additional_kwargs = dict()
 
-        return cls(t=time_array, d=digital_input_array, **additional_kwargs)
+        return DigitalIntanData._obj_from_args(t=time_array, d=digital_input_array, **additional_kwargs)
+    
+    @staticmethod
+    def _load_npz_file(preloaded_data_path):
+        loaded_file = np.load(preloaded_data_path, allow_pickle=True)
+        time_array, digital_input_array, dig_channel_names = (
+            loaded_file["time_array"],
+            loaded_file["digital_input_array"],
+            loaded_file["dig_channel_names"],
+        )
+        return time_array, digital_input_array, dig_channel_names
+    
+    @staticmethod
+    def from_npz_file(preloaded_data_path):
+        time_array, digital_input_array, dig_channel_names = DigitalIntanData._load_npz_file(preloaded_data_path)
+        if len(dig_channel_names) == 0:
+            dig_channel_names = None
+        return DigitalIntanData._obj_from_args(time_array, digital_input_array, 
+                                               columns=dig_channel_names)
+
+    @classmethod
+    def _obj_from_args(cls, *args, **kwargs):
+        return cls(*args, **kwargs)
+
 
     @staticmethod
     def _raw_rhd_data(data_path) -> list:
