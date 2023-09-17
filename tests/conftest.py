@@ -15,4 +15,5 @@ def intan_data_path(tmp_path_factory):
     # intan_data_path = tmp_path / "intan_data"
     for file in SOURCE_INTAN_FOLDER.iterdir():
         shutil.copy(file, intan_data_path / file.name)
+
     return intan_data_path
