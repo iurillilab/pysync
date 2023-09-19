@@ -67,30 +67,30 @@ class DigitalTsd(Tsd):
         return len(self)
 
     @functools.cached_property
-    def onsets(self) -> np.ndarray:
+    def onset_idxs(self) -> np.ndarray:
         print(self.values)
         onsets_arr = np.insert(self.values[1:] & ~self.values[:-1], 0, False)
         return np.nonzero(onsets_arr)[0]
 
     @functools.cached_property
-    def onsets_times(self) -> np.ndarray:
-        return Ts(self.index[self.onsets].values)
+    def onset_times(self) -> np.ndarray:
+        return Ts(self.index[self.onset_idxs].values)
 
     @functools.cached_property
-    def offsets(self) -> np.ndarray:
+    def offset_idxs(self) -> np.ndarray:
         offsets_arr = np.insert(~self.values[1:] & self.values[:-1], 0, False)
         return np.nonzero(offsets_arr)[0]
 
     @functools.cached_property
-    def offsets_times(self) -> np.ndarray:
-        return Ts(self.index[self.offsets].values)
+    def offset_times(self) -> np.ndarray:
+        return Ts(self.index[self.offset_idxs].values)
 
     @functools.cached_property
-    def all_events(self) -> np.ndarray:
-        all_events = np.concatenate([self.onsets, self.offsets])
-        all_events.sort()
-        return all_events
+    def all_event_idxs(self) -> np.ndarray:
+        all_event_idxs = np.concatenate([self.onset_idxs, self.offset_idxs])
+        all_event_idxs.sort()
+        return all_event_idxs
 
     @functools.cached_property
-    def all_events_times(self) -> np.ndarray:
-        return Ts(self.index[self.all_events].values)
+    def all_event_times(self) -> np.ndarray:
+        return Ts(self.index[self.all_event_idxs].values)

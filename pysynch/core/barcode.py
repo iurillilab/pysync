@@ -87,7 +87,7 @@ class BarcodeTsd(DigitalTsd):
         sample_conversion = 1000 / self.rate  # Convert sampling rate to msec
 
         # Signal extraction and barcode analysis
-        indexed_times = self.all_events
+        indexed_times = self.all_event_idxs
 
         # Find time difference between index values (ms), and extract barcode wrappers.
         events_time_diff = np.diff(indexed_times) * sample_conversion  # convert to ms
@@ -124,8 +124,8 @@ class BarcodeTsd(DigitalTsd):
 
         # Convert wrapper_start_times, on_times, and off_times to ms
         wrapper_start_times = wrapper_start_times * sample_conversion
-        on_times = self.onsets * sample_conversion
-        off_times = self.offsets * sample_conversion
+        on_times = self.onset_idxs * sample_conversion
+        off_times = self.offset_idxs * sample_conversion
 
         signals_barcodes = []
 

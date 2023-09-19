@@ -1,8 +1,10 @@
+import json
 import datetime
 import functools
 import os
 import struct
 from pathlib import Path
+from tqdm import tqdm
 
 import numpy as np
 import pandas as pd
@@ -34,6 +36,8 @@ class DigitalIntanData(TsdFrame):
 
     CACHED_FILE_TEMPLATE_NAME = "preloaded-intan-data-{}.npz"
     INTAN_FILENAME = ".rhd"
+    EXCLUDE_CHANNEL_NAME = ["exclude"]  # channels named this way will be ignored in the reading
+    DATA_CONFIG_FILENAME = "intan_data_config.json"
 
     @property
     def _constructor(self):
@@ -76,9 +80,11 @@ class DigitalIntanData(TsdFrame):
             ) = DigitalIntanData._load_npz_file(preloaded_data_path)
 
         else:
-            time_array, digital_input_array = DigitalIntanData._raw_rhd_data(
+            time_array, digital_input_array, read_dig_channel_names = DigitalIntanData._raw_rhd_data(
                 intan_data_path
             )
+            if read_dig_channel_names is not None and dig_channel_names is None:
+                dig_channel_names = read_dig_channel_names
 
             if cache_loaded_file_to_disk:
                 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -141,16 +147,35 @@ class DigitalIntanData(TsdFrame):
             List of raw readings, for internal munging.
         """
 
+        print("exporting data...")
         raw_files = [
             load_rhd_file(file)
-            for file in sorted(data_path.glob("*" + DigitalIntanData.INTAN_FILENAME))
+            for file in tqdm(sorted(data_path.glob("*" + DigitalIntanData.INTAN_FILENAME)))
         ]
-        # fs = raw_files[0]["frequency_parameters"]["board_dig_in_sample_rate"]
+
         time_array = np.concatenate([d["t_dig"] for d in raw_files])
         digital_input_array = np.concatenate(
             [d["board_dig_in_data"] for d in raw_files], axis=1
         ).T
-        return time_array, digital_input_array
+
+        data_config_filename = data_path / DigitalIntanData.DATA_CONFIG_FILENAME
+        dig_channel_names = None
+        if data_config_filename.exists(): 
+            with open(data_config_filename, "r") as f:
+                data_config = json.load(f)
+
+            if "downsample" in data_config.keys() and data_config["downsample"] > 1:
+                time_array = time_array[:: data_config["downsample"]]
+                digital_input_array = digital_input_array[::data_config["downsample"], :]
+
+            if "dig_channel_names" in data_config.keys():
+                dig_channel_names = data_config["dig_channel_names"] 
+                
+                columns_selector = [colname not in DigitalIntanData.EXCLUDE_CHANNEL_NAME for colname in dig_channel_names]
+                dig_channel_names = [colname for colname in dig_channel_names if colname not in DigitalIntanData.EXCLUDE_CHANNEL_NAME]
+                digital_input_array = digital_input_array[:, columns_selector] 
+        
+        return time_array, digital_input_array, dig_channel_names
 
     @functools.cached_property
     def barcodes_tsd(self) -> BarcodeTsd:
@@ -732,7 +757,8 @@ def load_rhd_file(filename):
         num_gaps = np.sum(
             np.not_equal(data["t_amplifier"][1:] - data["t_amplifier"][:-1], 1)
         )
-        print(f"{num_gaps} gaps in timestamp data found while loading.")
+        if num_gaps > 0:
+            print(f"{num_gaps} gaps in timestamp data found while loading {filename}.")
         # assert num_gaps == 0, f"Error: {num_gaps} gaps in timestamp data found.  Data file is corrupt!"
         # Scale time steps (units = seconds)
         data["t_amplifier"] = data["t_amplifier"] / header["sample_rate"]
