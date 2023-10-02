@@ -183,7 +183,7 @@ class PsychoScriptsLog:
                     psy_time.append(float(num_1))
                     cpu_time.append(int(num_2))
 
-        return psy_time, cpu_time
+        return np.array(psy_time), np.array(cpu_time)
 
     @functools.cached_property
     def psy_timebase(self):

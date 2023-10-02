@@ -9,7 +9,7 @@ from pysynch import DigitalTsd
 )
 def test_notime_error(time_kwargs):
     with pytest.raises(AssertionError):
-        DigitalTsd([0, 1, 1, 1, 0, 0, 1, 1, 0, 0], **time_kwargs)
+        DigitalTsd(np.array([0, 1, 1, 1, 0, 0, 1, 1, 0, 0]), **time_kwargs)
 
 
 @pytest.mark.parametrize(
@@ -17,13 +17,13 @@ def test_notime_error(time_kwargs):
 )
 class TestDigitalTsd:
     def test_properties(self, time_kwargs):
-        signal = DigitalTsd([0, 1, 1, 1, 0, 0, 1, 1, 0, 0], **time_kwargs)
+        signal = DigitalTsd(np.array([0, 1, 1, 1, 0, 0, 1, 1, 0, 0]), **time_kwargs)
         assert np.allclose(signal.onset_idxs, [1, 6])
         assert np.allclose(signal.offset_idxs, [4, 8])
         assert np.allclose(signal.all_event_idxs, [1, 4, 6, 8])
 
     def test_event_times(self, time_kwargs):
-        signal = DigitalTsd([0, 1, 1, 1, 0, 0, 1, 1, 0, 0], **time_kwargs)
+        signal = DigitalTsd(np.array([0, 1, 1, 1, 0, 0, 1, 1, 0, 0]), **time_kwargs)
         assert np.allclose(signal.onset_times.index, [0.5, 3.0])
         assert np.allclose(signal.offset_times.index, [2.0, 4.0])
         assert np.allclose(signal.all_event_times.index, [0.5, 2.0, 3.0, 4.0])

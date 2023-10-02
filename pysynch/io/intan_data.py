@@ -14,12 +14,41 @@ from pysynch.core.barcode import BarcodeTsd
 from pysynch.core.digital_signal import DigitalTsd
 
 
-class EmptyClass:
-    def __init__(self) -> None:
-        pass
+class _DigitalTsdFrameSliceHelper:
+    def __init__(self, tsdframe):
+        self.tsdframe = tsdframe
+
+    def __getitem__(self, key):
+        if hasattr(key, "__iter__") and not isinstance(key, str):
+            index = self.tsdframe.columns.get_indexer(key)
+        else:
+            index = self.tsdframe.columns.get_indexer([key])
+
+        if len(index) == 1:
+            data = self.tsdframe[:, index[0]]
+            return DigitalTsd(data.values.flat, self.tsdframe.index)
+        else:
+            data = self.tsdframe[:, index]
+        
+            return DigitalTsdFrame(data, self.tsdframe.index)
+        
+
+class DigitalTsdFrame(TsdFrame):
+
+    @property
+    def _constructor(self):
+        return DigitalIntanData
+
+    @property
+    def _constructor_sliced(self):
+        return DigitalTsd
+    
+    @property
+    def loc(self):
+        return _DigitalTsdFrameSliceHelper(self)
 
 
-class DigitalIntanData(TsdFrame):
+class DigitalIntanData(DigitalTsdFrame):
     """Class to load and cache in .npy files data from an Intan recording session.
 
     TODO: implement for analog data
@@ -39,16 +68,9 @@ class DigitalIntanData(TsdFrame):
     EXCLUDE_CHANNEL_NAME = ["exclude"]  # channels named this way will be ignored in the reading
     DATA_CONFIG_FILENAME = "intan_data_config.json"
 
-    @property
-    def _constructor(self):
-        return DigitalIntanData
-
-    @property
-    def _constructor_sliced(self):
-        return DigitalTsd
-
-    @staticmethod
+    @classmethod
     def from_folder(
+        cls,
         intan_data_path,
         dig_channel_names=None,
         force_loading=False,
@@ -106,7 +128,7 @@ class DigitalIntanData(TsdFrame):
         else:
             additional_kwargs = dict()
 
-        return DigitalIntanData._obj_from_args(
+        return cls._obj_from_args(
             t=time_array, d=digital_input_array, **additional_kwargs
         )
 
@@ -177,16 +199,93 @@ class DigitalIntanData(TsdFrame):
         
         return time_array, digital_input_array, dig_channel_names
 
+
+class ECEphysExpIntanData(DigitalIntanData):
+    """Class that implements some specific methods for the intan data generated in a 
+    ephys experiment. So far, methods to deal with barcode recorded from arduino
+    and barcode reading from photodiode trace.
+
+    """
+
     @functools.cached_property
-    def barcodes_tsd(self) -> BarcodeTsd:
-        assert "barcodes" in self.columns, "No 'barcodes' in the data headers!"
+    def barcode(self) -> BarcodeTsd:
+        assert "barcode" in self.columns, "No 'barcodes' in the data headers!"
         # TODO look into this: this sintax initializes a DigitalTsd, passes it
         # to the BarcodeTsd object that than initializes a second DigitalTsd
-        return BarcodeTsd(self["barcodes"])
+        return BarcodeTsd(self.loc["barcode"], time_array=self.index)
+    
+    @property
+    def timebase(self):
+        return self.barcode.timebase
+    
+    @functools.cached_property
+    def photodiode_barcode_times(self):
+        assert "photodiode" in self.columns, "No 'photo_diode' in the data headers!"
 
-    # @functools.cached_property
-    # def timebase(self) -> DigitalTsd:
-    #    return DigitalTsd(self["timebase"])
+        return _find_screen_barcode_onsets_times(self.loc["photodiode"])
+
+
+
+# TODO not sure this is the right place for this function
+def _find_screen_barcode_onsets_times(photodiode_sig: DigitalTsd):
+    """Function to find first detected barcode in the photodiode signal. Barcode specs
+    are defined in the PsychoScripts log class, and read here accordingly.
+
+    Parameters
+    ----------
+    photodiode_sig : DigitalTsd
+        Signal from the photodiode
+
+    Returns
+    -------
+    _type_
+        Ts object with the onset times of the barcodes.
+    """
+    # At the moment this is a magic number titrated to be low enough to include broker barcodes
+    # wit less pulses, and high enough to filter any noise:
+
+    #       __    __
+    #      |  |  |  |
+    # _____|  |__|  |__
+    #.       
+
+    # Minimum number of fast up-down flickers that flank each barcode
+    CONSECUTIVE_TRUES_N = 5  # 7 for the old function
+    MIN_INTERBARCODE_DIST = 8  # 2.9 for the old function
+    # In the calculation we need to know what is the miniimum timestap of the digital barcoding
+    # (the fastest rate of modulation of the square, sort of the inverse of the baudrate).
+    # We do this sorting all time intervals and taking the median of the shortest VALS_FOR_STEP_CALC_N of them:
+    VALS_FOR_STEP_CALC_N = 40
+
+    # Tolerance factor (from 0 to 1) to compute how much temporal error we accept in minimum finding
+    TOLERANCE_FRACT = 0.05
+
+
+    # Find inverse of the baudrate:
+    times_intervals = photodiode_sig.offset_times.index - photodiode_sig.onset_times.index
+    shortest_steps = np.sort(times_intervals)[:VALS_FOR_STEP_CALC_N]
+    min_step_t = np.median(shortest_steps)
+
+    # Find all pulses that corrispond to minimum interbar frequency:
+    is_fast_step = (
+        times_intervals - min_step_t
+    ) < min_step_t + min_step_t * TOLERANCE_FRACT
+    consecutive_true_counts = np.convolve(
+        is_fast_step, np.ones(CONSECUTIVE_TRUES_N), mode="valid"
+    )
+    consecutive_true_idxs = np.nonzero(consecutive_true_counts == CONSECUTIVE_TRUES_N)[
+        0
+    ]
+
+    # Filter first events of the series:
+    barcode_start_times = photodiode_sig.onset_times.index[consecutive_true_idxs]
+    valid_starts_idxs = np.insert(
+        np.diff(barcode_start_times) > MIN_INTERBARCODE_DIST, 0, True
+    )
+    return barcode_start_times[valid_starts_idxs]
+
+
+
 
 
 # Internet code ro read intan data files.

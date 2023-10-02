@@ -15,23 +15,23 @@ class TimeBaseMixin(ABC):
     to the timebase of the other."""
 
     @abstractmethod
-    def _map_to(self, other_timebase: TimeBaseTs | IndexedTimeBase):
+    def _map_to(self, other_timebase: TimeBaseTs | IndexedTimeBaseTsd):
         """Core index conversion function"""
         pass
 
     def map_times_to(
-        self, other_timebase: TimeBaseTs | IndexedTimeBase, times: np.ndarray, **kwargs
+        self, other_timebase: TimeBaseTs | IndexedTimeBaseTsd, times: np.ndarray, **kwargs
     ) -> int | np.ndarray:
         """Core index conversion function"""
         coef, off = self._map_to(other_timebase, **kwargs)
         return (times * coef) + off
 
     def map_ts_to(
-        self, other_timebase: TimeBaseTs | IndexedTimeBase, tsd_obj: Ts | Tsd, **kwargs
+        self, other_timebase: TimeBaseTs | IndexedTimeBaseTsd, tsd_obj: Ts | Tsd, **kwargs
     ):
         """Map a Ts object to another timebase."""
 
-        new_tsd_obj = tsd_obj.copy()
+        new_tsd_obj = tsd_obj#.copy()
         new_index = self.map_times_to(other_timebase, new_tsd_obj.index, **kwargs)
         new_tsd_obj.index = new_index
         return new_tsd_obj
@@ -87,15 +87,12 @@ class TimeBaseTs(Ts, TimeBaseMixin):
         return coef, offset
 
 
-class IndexedTimeBase(Tsd, TimeBaseMixin):
+class IndexedTimeBaseTsd(Tsd, TimeBaseMixin):
     """Timebase class for mapping signals between timebases. Assumes timebase
     is built from events that can be distinguishes (eg, barcodes).
     """
 
-    def __init__(self, data, index):
-        super().__init__(data, index)
-
-    def _map_to(self, other_timebase: "IndexedTimeBase") -> tuple[float, float]:
+    def _map_to(self, other_timebase: "IndexedTimeBaseTsd") -> tuple[float, float]:
         """Map two timebases to each other.
 
         Parameters
@@ -111,9 +108,8 @@ class IndexedTimeBase(Tsd, TimeBaseMixin):
 
         # linear regression using least squares in numpy:
         assert isinstance(
-            other_timebase, IndexedTimeBase
+            other_timebase, IndexedTimeBaseTsd
         ), "other_timebase must be an IndexedTimeBase!"
-        print(self.values, other_timebase.values)
         _, own_index, other_index = np.intersect1d(
             self.values, other_timebase.values, return_indices=True
         )

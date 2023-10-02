@@ -6,7 +6,7 @@
 import numpy as np
 
 from pysynch.core.digital_signal import DigitalTsd
-from pysynch.core.timebase import TimeBaseTs
+from pysynch.core.timebase import IndexedTimeBaseTsd
 
 
 class BarcodeTsd(DigitalTsd):
@@ -68,7 +68,7 @@ class BarcodeTsd(DigitalTsd):
     @property
     def timebase(self) -> np.ndarray:
         """Generate timebase object from detected barcodes."""
-        return TimeBaseTs(self.barcodes, self.barcodes_times)
+        return IndexedTimeBaseTsd(d=self.barcodes, t=self.barcodes_times)
 
     def _read_barcodes(self) -> None:
         """Analyzes the digital signal to extract the barcodes. Lengthy function inherited from the barcode
@@ -199,3 +199,4 @@ class BarcodeTsd(DigitalTsd):
         # Create merged array with timestamps stacked above their barcode values
         self._barcodes = np.array(signals_barcodes)
         self._barcodes_idx = np.array(signals_barcode_start_idxs)
+

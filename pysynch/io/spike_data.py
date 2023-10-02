@@ -2,6 +2,7 @@ import pynapple as nap
 import pandas as pd
 from pathlib import Path
 from scipy.ndimage import gaussian_filter
+from pysynch.core.barcode import BarcodeTsd
 from tqdm import tqdm
 import numpy as np
 import functools    
@@ -9,10 +10,12 @@ import functools
 
 class SpikeData:
     FILE_CACHE_NAME = "spikes_df.npy"
+    BARCODE_FILENAME = "barcodes.npy"
 
-    def __init__(self, folder_path: Path, force_loading: bool = False):
+    def __init__(self, folder_path: Path, force_loading: bool = False, sampling_fs=30000):
         self.root = Path(folder_path)
         cache_filename = self.root / self.FILE_CACHE_NAME 
+        self.sampling_fs = sampling_fs
         
         if cache_filename.exists() or force_loading:
             spikes_vals = np.load(cache_filename)
@@ -69,11 +72,11 @@ class SpikeData:
 
     @functools.cached_property
     def units_depth_df(self):
-        temps = np.load(self.spikes_data_folder / "templates.npy")
+        temps = np.load(self.root / "templates.npy")
         chan_idxs = temps.mean(1).argmax(1)
-        channel_positions = np.load(self.spikes_data_folder / "channel_positions.npy")
+        channel_positions = np.load(self.root / "channel_positions.npy")
         units_positions = channel_positions[chan_idxs, :]
-        good_idxs = self.spikes.index
+        good_idxs = self.neurons_idxs
         df = pd.DataFrame(units_positions[good_idxs, [1]], index=good_idxs, columns=["depth"])
         df["tot_spikes"] = self.spikes_df.groupby("nid").count()
         df["nid"] = [f"{self.root.name}_{i}" for i in df.index]
@@ -97,6 +100,20 @@ class SpikeData:
 
         return df
     
+    @functools.cached_property
+    def _barcodes_data(self, **kwargs):
+        # Load barcode file in the same folder:
+        barcode_file = self.root / self.BARCODE_FILENAME
+        assert barcode_file.exists(), f"Barcode file not found in {self.root}"
+        return np.load(barcode_file)
+    
+    @functools.cached_property
+    def barcodes(self):
+        return BarcodeTsd(self._barcodes_data, np.arange(len(self._barcodes_data)) / self.sampling_fs)
+
+    @functools.cached_property
+    def timebase(self):
+        return self.barcodes.timebase
 
 if __name__=="__main__":
     from datetime import datetime
@@ -106,5 +123,5 @@ if __name__=="__main__":
 
     print((datetime.now() - t).total_seconds())
     t = datetime.now()
-    spikedata.units_depth_df
+    spikedata.timebase
     print((datetime.now() - t).total_seconds())

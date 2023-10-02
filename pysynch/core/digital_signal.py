@@ -59,22 +59,21 @@ class DigitalTsd(Tsd):
 
         if time_array is None:
             time_array = np.arange(len(array)) / rate
-        super().__init__(array, time_array)
+        super().__init__(d=array, t=time_array)
 
     @property
     def n_pts(self) -> int:
         # TODO deprecate
         return len(self)
-
+    
     @functools.cached_property
     def onset_idxs(self) -> np.ndarray:
-        print(self.values)
         onsets_arr = np.insert(self.values[1:] & ~self.values[:-1], 0, False)
         return np.nonzero(onsets_arr)[0]
 
     @functools.cached_property
     def onset_times(self) -> np.ndarray:
-        return Ts(self.index[self.onset_idxs].values)
+        return Ts(self.index[self.onset_idxs])
 
     @functools.cached_property
     def offset_idxs(self) -> np.ndarray:
@@ -83,7 +82,7 @@ class DigitalTsd(Tsd):
 
     @functools.cached_property
     def offset_times(self) -> np.ndarray:
-        return Ts(self.index[self.offset_idxs].values)
+        return Ts(self.index[self.offset_idxs])
 
     @functools.cached_property
     def all_event_idxs(self) -> np.ndarray:
@@ -93,4 +92,4 @@ class DigitalTsd(Tsd):
 
     @functools.cached_property
     def all_event_times(self) -> np.ndarray:
-        return Ts(self.index[self.all_event_idxs].values)
+        return Ts(self.index[self.all_event_idxs])

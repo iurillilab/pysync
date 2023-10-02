@@ -37,14 +37,18 @@ class TreadmillData(TsdFrame):
         csv_datasets = list(path.glob(TreadmillData.FILE_PATTERN.format("*")))
         assert len(csv_datasets) > 0, f"No treadmill data found in {path}"
 
+        # TODO change once Tsd concatenation has been solved
+        #df_list = []
+        #for csv_dataset in csv_datasets:
+        #    df_list.append(cls.from_csv(csv_dataset))
         df_list = []
         for csv_dataset in csv_datasets:
-            df_list.append(cls.from_csv(csv_dataset))
+            df_list.append(pd.read_csv(csv_dataset))
 
-        df = pd.concat(df_list, axis=0, ignore_index=True)
+        df = pd.concat(df_list).reset_index()
         df = TreadmillData.preprocess_df(df)
 
-        return cls(df)
+        return cls(d=df.values, t=df.index.values, columns=df.columns)
 
     @classmethod
     def from_csv(cls, file_path):
@@ -69,3 +73,9 @@ class TreadmillData(TsdFrame):
         df = df.set_index("time")
 
         return df
+
+
+if __name__ == "__main__":
+    from pathlib import Path
+    data_folder = Path("/Users/vigji/Desktop/batch6_ephys_data/M9")
+    treadmill_data = TreadmillData.from_folder(data_folder / "TreadmillData")
